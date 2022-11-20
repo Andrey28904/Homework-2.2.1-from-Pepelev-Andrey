@@ -12,11 +12,5 @@ def main():
         exit(0)
 
 
-<<<<<<< HEAD
-testing_merge_conflict_value = "Alyona crash Vasya's code"
-||||||| f621660
 testing_merge_conflict_value = "Standart Value"
-=======
-testing_merge_conflict_value = "Vasya code change this value"
->>>>>>> merge_conflict_branch
 main()
