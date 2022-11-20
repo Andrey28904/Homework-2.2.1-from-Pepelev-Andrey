@@ -1,5 +1,6 @@
 import ReportPDF, ReportTable
 
+
 def main():
     type_of_report = input("Введите тип отчета (Вакансии/Статистика): ")
     if type_of_report == "Вакансии":
@@ -10,4 +11,6 @@ def main():
         print("Неверный тип отчета!")
         exit(0)
 
+
+testing_merge_conflict_value = "Standart Value"
 main()
