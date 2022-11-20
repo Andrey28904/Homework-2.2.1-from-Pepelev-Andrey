@@ -12,5 +12,5 @@ def main():
         exit(0)
 
 
-testing_merge_conflict_value = "Standart Value"
+testing_merge_conflict_value = "Alyona crash Vasya's code"
 main()
