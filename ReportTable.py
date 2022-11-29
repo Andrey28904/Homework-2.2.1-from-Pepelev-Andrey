@@ -2,6 +2,11 @@ import csv, re, prettytable
 from math import floor
 from prettytable import PrettyTable
 
+import doctest
+
+if __name__ == '__main__':
+    doctest.testmod()
+
 
 def do_exit(message):
     """Преднамеренное завершение программы с выводом сообщения в консоль.
@@ -57,7 +62,7 @@ class All_Used_Dicts():
     filter_key_to_function = {
         "key_skills": lambda vac, input_vals: all([skill in vac.skills for skill in input_vals.filter_skills]),
         "salary": lambda vac, input_vals: int(input_vals.filter_param) >= vac.salary.salary_from and
-                                                int(input_vals.filter_param) <= vac.salary.salary_to,
+                                          int(input_vals.filter_param) <= vac.salary.salary_to,
         "salary_currency": lambda vac, input_vals: input_vals.filter_param == vac.salary.salary_cur_ru,
         "experience_id": lambda vac, input_vals: vac.exp == input_vals.filter_param,
         "premium": lambda vac, input_vals: vac.prem == input_vals.filter_param,
@@ -91,11 +96,21 @@ class Salary:
         self.salary_cur_ru = All_Used_Dicts.transformate[self.salary_currency]
 
     def get_rur_salary(self):
-        """Функция перевода валюты в рубли."""
+        """Функция перевода валюты в рубли.
+        >>> Salary({"salary_from": 10, "salary_to": 20, "salary_currency": "RUR", "salary_gross": "True"}).get_rur_salary()
+        15.0
+        >>> Salary({"salary_from": 10, "salary_to": 20, "salary_currency": "EUR", "salary_gross": "True"}).get_rur_salary()
+        898.5
+        >>> Salary({"salary_from": "10", "salary_to": "20", "salary_currency": "RUR", "salary_gross": "True"}).get_rur_salary()
+        15.0
+        >>> Salary({"salary_from": "10", "salary_to": "20", "salary_currency": "KGS", "salary_gross": "True"}).get_rur_salary()
+        11.4
+        """
         middle_salary = (self.salary_to + self.salary_from) / 2
         return All_Used_Dicts.currency_to_rub[self.salary_currency] * middle_salary
 
-    def get_number_with_delimiter(self, number: int) -> str:
+    @staticmethod
+    def get_number_with_delimiter(number: int) -> str:
         """Получить зарплату с пробелами через каждые 3 символа.
 
         Args:
@@ -103,6 +118,14 @@ class Salary:
 
         Returns:
             str: форматированное число.
+        >>> Salary.get_number_with_delimiter(100)
+        '100'
+        >>> Salary.get_number_with_delimiter(1000)
+        '1 000'
+        >>> Salary.get_number_with_delimiter(1000000)
+        '1 000 000'
+        >>> Salary.get_number_with_delimiter(1000000000)
+        '1 000 000 000'
         """
         return '{:,}'.format(number).replace(",", " ")
 
@@ -112,8 +135,8 @@ class Salary:
 
         Returns:
             str: Полная зарплата."""
-        start = self.get_number_with_delimiter(self.salary_from)
-        end = self.get_number_with_delimiter(self.salary_to)
+        start = Salary.get_number_with_delimiter(self.salary_from)
+        end = Salary.get_number_with_delimiter(self.salary_to)
         return f"{start} - {end} ({self.salary_cur_ru}) ({self.salary_gross})"
 
 
@@ -137,14 +160,21 @@ class Vacancy:
         time_vals = dic["published_at"].split("T")[0].split("-")
         self.time = f"{time_vals[2]}.{time_vals[1]}.{time_vals[0]}"
 
-    def clean_val(self, val: str) -> str:
-        """Обрезать строку, если ее длинна больше 100 символов.
+    @staticmethod
+    def clean_val(val: str) -> str:
+        """Обрезать строку, если ее длинна >= 100 символам.
 
         Args:
             val (str): Входная строка.
 
         Returns:
             str: Обрезанная строка.
+        >>> Vacancy.clean_val("abc")
+        'abc'
+        >>> Vacancy.clean_val("a"*100)
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa...'
+        >>> Vacancy.clean_val("b"*99)
+        'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
         """
         return val if len(val) < 100 else val[:100] + "..."
 
@@ -157,7 +187,7 @@ class Vacancy:
         s = self
         vals = [s.dic["name"], s.dic["description"], s.dic["key_skills"], s.exp,
                 s.prem, s.dic["employer_name"], s.salary.get_full_salary(), s.dic["area_name"], s.time]
-        return list(map(s.clean_val, vals))
+        return list(map(Vacancy.clean_val, vals))
 
 
 class InputCorrect:
@@ -263,7 +293,8 @@ class DataSet:
             self.other_lines = [line for line in file
                            if not ("" in line) and len(line) == len(self.start_line)]
 
-    def clear_field_from_html_and_spaces(self, field: str) -> str:
+    @staticmethod
+    def clear_field_from_html_and_spaces(field: str) -> str:
         """Функция удаления HTML-тегов и лишних пробелов из поля.
 
         Args:
@@ -271,6 +302,20 @@ class DataSet:
 
         Returns:
             str: Очищенное поле.
+        >>> DataSet.clear_field_from_html_and_spaces("abc")
+        'abc'
+        >>> DataSet.clear_field_from_html_and_spaces("<div>abc</div>")
+        'abc'
+        >>> DataSet.clear_field_from_html_and_spaces("<div>abc")
+        'abc'
+        >>> DataSet.clear_field_from_html_and_spaces("   abc  ")
+        'abc'
+        >>> DataSet.clear_field_from_html_and_spaces(" abc     abd")
+        'abc abd'
+        >>> DataSet.clear_field_from_html_and_spaces(" <div><strong><i>  abc <i>  abd  <string>")
+        'abc abd'
+        >>> DataSet.clear_field_from_html_and_spaces(" <div> abc <iqewqljl> <  div   > abd <i>")
+        'abc abd'
         """
         new_field = re.sub(r"\<[^>]*\>", '', field).strip()
         if new_field.find("\n") > -1:
@@ -283,7 +328,7 @@ class DataSet:
         """Фильтрация данных по параметру фильтрации."""
         self.filtered_vacancies = []
         for line in self.other_lines:
-            new_dict_line = dict(zip(self.start_line, map(self.clear_field_from_html_and_spaces, line)))
+            new_dict_line = dict(zip(self.start_line, map(DataSet.clear_field_from_html_and_spaces, line)))
             vac = Vacancy(new_dict_line)
             try:
                 is_correct_vac = \

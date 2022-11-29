@@ -6,6 +6,11 @@ from matplotlib.axes import Axes
 from jinja2 import Template
 import pdfkit
 
+import doctest
+
+if __name__ == '__main__':
+    doctest.testmod()
+
 
 def do_exit(message):
     """Преднамеренное завершение программы с выводом сообщения в консоль.
@@ -130,7 +135,8 @@ class DataSet:
         self.all_years = list(set([vac.dic["year"] for vac in self.filtered_vacancies]))
         self.all_years.sort()
 
-    def try_to_add(self, dic: dict, key, val) -> dict:
+    @staticmethod
+    def try_to_add(dic: dict, key, val) -> dict:
         """Попытка добавить в словарь значение по ключу или создать новый ключ, если его не было.
 
         Args:
@@ -140,6 +146,24 @@ class DataSet:
 
         Returns:
             dict: Изменный словарь.
+        >>> DataSet.try_to_add({"a": 10}, "a", 5)
+        {'a': 15}
+        >>> DataSet.try_to_add({"a": 10}, "b", 5)
+        {'a': 10, 'b': 5}
+        >>> DataSet.try_to_add({"a": 10}, "a", -5)
+        {'a': 5}
+        >>> DataSet.try_to_add({}, "a", 5)
+        {'a': 5}
+        >>> DataSet.try_to_add({"a": 5, "b": 10}, "a", 20)
+        {'a': 25, 'b': 10}
+        >>> DataSet.try_to_add({"a": 5, "b": 10}, "b", 40)
+        {'a': 5, 'b': 50}
+        >>> DataSet.try_to_add({2022: 10, 2023: 0}, 2022, 5)
+        {2022: 15, 2023: 0}
+        >>> DataSet.try_to_add({2022: 0}, "a", 5)
+        {2022: 0, 'a': 5}
+        >>> DataSet.try_to_add({2022: 0, "a": 5}, 2022, 100)
+        {2022: 100, 'a': 5}
         """
         try:
             dic[key] += val
@@ -147,7 +171,8 @@ class DataSet:
             dic[key] = val
         return dic
 
-    def get_middle_salary(self, key_to_count: dict, key_to_sum: dict) -> dict:
+    @staticmethod
+    def get_middle_salary(key_to_count: dict, key_to_sum: dict) -> dict:
         """Получить словарь с средними зарплатами.
 
         Args:
@@ -156,6 +181,18 @@ class DataSet:
 
         Returns:
             dict: Словарь с теми же ключами, но значения по ключам - средняя зарплата.
+        >>> DataSet.get_middle_salary({2022: 10}, {2022: 120})
+        {2022: 12}
+        >>> DataSet.get_middle_salary({2022: 10, 2023: 1}, {2022: 100, 2023: 10})
+        {2022: 10, 2023: 10}
+        >>> DataSet.get_middle_salary({"2022": 10, 2023: 2}, {"2022": 100, 2023: 10})
+        {'2022': 10, 2023: 5}
+        >>> DataSet.get_middle_salary({2022: 0}, {2022: 0})
+        {2022: 0}
+        >>> DataSet.get_middle_salary({2022: 0, 2023: 10}, {2022: 0, 2023: 1200})
+        {2022: 0, 2023: 120}
+        >>> DataSet.get_middle_salary({2022: 5}, {2022: -50})
+        {2022: -10}
         """
         key_to_salary = {}
         for key, val in key_to_count.items():
@@ -165,51 +202,83 @@ class DataSet:
                 key_to_salary[key] = math.floor(key_to_sum[key] / val)
         return key_to_salary
 
-    def update_keys(self, key_to_count: dict) -> dict:
+    @staticmethod
+    def update_keys(years: list, key_to_count: dict) -> dict:
         """Обновить словарь и добавить ключи (года) со значением 0, если их нет в словаре.
 
         Args:
+            years (list): Список лет. Год - добавляемый в словарь ключ.
             key_to_count (dict): Словарь с возможно отсутствующими ключами.
 
         Returns:
             dict: Словарь с заполненными пропусками.
+        >>> DataSet.update_keys([2022], {})
+        {2022: 0}
+        >>> DataSet.update_keys([2022], {2022: 10})
+        {2022: 10}
+        >>> DataSet.update_keys([2022, 2023], {2022: 10})
+        {2022: 10, 2023: 0}
+        >>> DataSet.update_keys([2022, 2023], {2022: 10, 2023: 20})
+        {2022: 10, 2023: 20}
+        >>> DataSet.update_keys([2022], {2022: 10, 2023: 20})
+        {2022: 10, 2023: 20}
+        >>> DataSet.update_keys([2022, 2023, 2024, 2025], {})
+        {2022: 0, 2023: 0, 2024: 0, 2025: 0}
         """
-        for key in self.all_years:
+        for key in years:
             if key not in key_to_count.keys():
                 key_to_count[key] = 0
         return key_to_count
 
-    def get_key_to_salary_and_count(self, vacs: list, key_str: str, is_area: bool) -> (dict, dict):
+    @staticmethod
+    def get_key_to_salary_and_count(years: list, vacs: list, key_str: str, is_area: bool) -> (dict, dict):
         """Универсальная функция для высчитывания средней зарплаты и количества по ключам.
 
         Args:
+            years (list): Список лет. год - ключ для добавления в словарь.
             vacs (list): Список нужных вакансий.
             key_str (str): Ключ внутри словаря вакансии, по которому идет рассчет.
             is_area (bool): Если да, то отбрасывать маловакантные города.
 
         Returns:
-            tuple: Кортеж из двух словарей: ключ/средняя зарплата, ключ/кол-во повторений."""
+            tuple: Кортеж из двух словарей: ключ/средняя зарплата, ключ/кол-во повторений.
+        """
         key_to_sum = {}
         key_to_count = {}
         for vac in vacs:
-            key_to_sum = self.try_to_add(key_to_sum, vac.dic[key_str], vac.salary.salary_in_rur)
-            key_to_count = self.try_to_add(key_to_count, vac.dic[key_str], 1)
+            key_to_sum = DataSet.try_to_add(key_to_sum, vac.dic[key_str], vac.salary.salary_in_rur)
+            key_to_count = DataSet.try_to_add(key_to_count, vac.dic[key_str], 1)
         if is_area:
             key_to_count = dict(filter(lambda item: item[1] / len(vacs) > 0.01, key_to_count.items()))
         else:
-            key_to_sum = self.update_keys(key_to_sum)
-            key_to_count = self.update_keys(key_to_count)
-        key_to_middle_salary = self.get_middle_salary(key_to_count, key_to_sum)
+            key_to_sum = DataSet.update_keys(years, key_to_sum)
+            key_to_count = DataSet.update_keys(years,key_to_count)
+        key_to_middle_salary = DataSet.get_middle_salary(key_to_count, key_to_sum)
         return key_to_middle_salary, key_to_count
 
-    def get_sorted_dict(self, key_to_salary: dict):
-        """Отсортировать словарь и вернуть только 10 ключ-значений.
+    @staticmethod
+    def get_sorted_dict(key_to_salary: dict):
+        """Отсортировать словарь по значениям по убыванию и вернуть только 10 ключ-значений.
 
         Args:
             key_to_salary (dict): Неотсортированный словарь.
 
         Returns:
             dict: Отсортированный словарь, в котором только 10 ключ-значений.
+        >>> DataSet.get_sorted_dict({})
+        {}
+        >>> DataSet.get_sorted_dict({"Мск": 10})
+        {'Мск': 10}
+        >>> DataSet.get_sorted_dict({"Екб": 10, "Мск": 20})
+        {'Мск': 20, 'Екб': 10}
+        >>> DataSet.get_sorted_dict({"Екб": 20, "Мск": 20})
+        {'Екб': 20, 'Мск': 20}
+        >>> DataSet.get_sorted_dict({"a": 5, "b": 4, "c": 5})
+        {'a': 5, 'c': 5, 'b': 4}
+        >>> DataSet.get_sorted_dict({"a": 1, "b": 2, "c": 3, "d": 4, "e": 5, "f": 6, "h": 7, "t": 8, "k": 9, "o": 10, "l": 11})
+        {'l': 11, 'o': 10, 'k': 9, 't': 8, 'h': 7, 'f': 6, 'e': 5, 'd': 4, 'c': 3, 'b': 2}
+        >>> DataSet.get_sorted_dict({"a": 1, "b": 3, "c": 5, "d": 2, "e": 8, "f": 4, "h": 9, "t": 10, "k": 6, "o": 7, "l": 11})
+        {'l': 11, 't': 10, 'h': 9, 'e': 8, 'o': 7, 'k': 6, 'c': 5, 'f': 4, 'b': 3, 'd': 2}
         """
         return dict(list(sorted(key_to_salary.items(), key=lambda item: item[1], reverse=True))[:10])
 
@@ -217,11 +286,11 @@ class DataSet:
         """Считает данные для графиков и таблиц."""
         count_vacs = len(self.filtered_vacancies)
         self.year_to_salary, self.year_to_count = \
-            self.get_key_to_salary_and_count(self.filtered_vacancies, "year", False)
+            self.get_key_to_salary_and_count(self.all_years, self.filtered_vacancies, "year", False)
         self.year_to_salary_needed, self.year_to_count_needed = \
-            self.get_key_to_salary_and_count(self.needed_vacancies, "year", False)
+            self.get_key_to_salary_and_count(self.all_years, self.needed_vacancies, "year", False)
         self.area_to_salary, self.area_to_count = \
-            self.get_key_to_salary_and_count(self.filtered_vacancies, "area_name", True)
+            self.get_key_to_salary_and_count(self.all_years, self.filtered_vacancies, "area_name", True)
         self.area_to_salary = self.get_sorted_dict(self.area_to_salary)
         self.area_to_piece = {key: round(val / count_vacs, 4) for key, val in self.area_to_count.items()}
         self.area_to_piece = self.get_sorted_dict(self.area_to_piece)
@@ -252,7 +321,8 @@ class Report:
                            list(map(self.get_percents, data.area_to_piece.values()))]
         self.sheet_2_rows = self.get_table_rows(sheet_2_columns)
 
-    def get_percents(self, value):
+    @staticmethod
+    def get_percents(value):
         """Получить проценты из значения.
 
         Args:
@@ -260,10 +330,23 @@ class Report:
 
         Returns:
             str: Проценты с 2-мя цифрами после запятой и знаком '%'.
+        >>> Report.get_percents(0)
+        '0%'
+        >>> Report.get_percents(1)
+        '100%'
+        >>> Report.get_percents(0.5)
+        '50.0%'
+        >>> Report.get_percents(0.753)
+        '75.3%'
+        >>> Report.get_percents(0.7001)
+        '70.01%'
+        >>> Report.get_percents(0.70015)
+        '70.02%'
         """
         return f"{round(value * 100, 2)}%"
 
-    def get_table_rows(self, columns: list):
+    @staticmethod
+    def get_table_rows(columns: list):
         """Транспанирование списка списков - первод столбцов в строки.
 
         Args:
@@ -271,6 +354,14 @@ class Report:
 
         Returns:
             list: Список строк.
+        >>> Report.get_table_rows([[1]])
+        [[1]]
+        >>> Report.get_table_rows([[1, 1], [2, 2]])
+        [[1, 2], [1, 2]]
+        >>> Report.get_table_rows([[1, 2, 3], [1, 2, 3], [1, 2, 3]])
+        [[1, 1, 1], [2, 2, 2], [3, 3, 3]]
+        >>> Report.get_table_rows([[1, 2, 3], [1, 2, 3], [1, 2, 10]])
+        [[1, 1, 1], [2, 2, 2], [3, 3, 10]]
         """
         rows_list = [["" for _ in range(len(columns))] for _ in range(len(columns[0]))]
         for col in range(len(columns)):
