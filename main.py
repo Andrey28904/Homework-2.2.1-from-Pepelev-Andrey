@@ -2,6 +2,7 @@ import ReportPDF, ReportTable
 
 
 def main():
+    """Выбор формирования отчета: в виде pdf или таблицы PrettyTable."""
     type_of_report = input("Введите тип отчета (Вакансии/Статистика): ")
     if type_of_report == "Вакансии":
         ReportTable.create_table()
@@ -12,5 +13,4 @@ def main():
         exit(0)
 
 
-testing_merge_conflict_value = "Vasya+++++"
 main()
