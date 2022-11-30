@@ -56,7 +56,7 @@ class Vacancy:
         """Инициализация объекта Vacancy. Приведение к более удобному виду.
 
         Args:
-            dic (dict): Словарь информации про зарплату.
+            dic (dict): Словарь информации про зарплату
         """
         self.dic = dic
         self.salary = Salary(dic)
