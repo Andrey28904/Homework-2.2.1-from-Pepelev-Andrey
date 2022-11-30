@@ -1,4 +1,5 @@
 import csv, re, math
+import datetime
 
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
@@ -7,9 +8,6 @@ from jinja2 import Template
 import pdfkit
 
 import doctest
-
-if __name__ == '__main__':
-    doctest.testmod()
 
 
 def do_exit(message):
@@ -62,8 +60,45 @@ class Vacancy:
         """
         self.dic = dic
         self.salary = Salary(dic)
-        self.dic["year"] = int(dic["published_at"][:4])
+        self.dic["year"] = int(Vacancy.get_year_method_3(dic["published_at"]))
         self.is_needed = dic["is_needed"]
+
+    #@staticmethod
+    #def get_year_method_1(data: str):
+    #    """Функция вычисления года через класс datetime.
+    #
+    #    Args:
+    #        data (str): дата вакансии в виде строки из csv-файла.
+    #
+    #    Returns:
+    #        str: Год - 4 цифры.
+    #    """
+    #    date = datetime.datetime.strptime(data, "%Y-%m-%dT%H:%M:%S%z")
+    #    return date.year
+
+    #@staticmethod
+    #def get_year_method_2(data: str):
+    #    """Функция вычисления года через метод split().
+    #
+    #    Args:
+    #        data (str): дата вакансии в виде строки из csv-файла.
+    #
+    #    Returns:
+    #        str: Год - 4 цифры.
+    #    """
+    #    return data.split("T")[0].split("-")[0]
+
+    @staticmethod
+    def get_year_method_3(data: str):
+        """Функция вычисления года через индексы в строке.
+
+        Args:
+            data (str): дата вакансии в виде строки из csv-файла.
+
+        Returns:
+            str: Год - 4 цифры.
+        """
+        return data[:4]
 
 
 class InputCorrect:
@@ -471,3 +506,8 @@ def create_pdf():
     """Функция создания pdf-файла-отчета."""
     report_data = Report(DataSet(input("Введите название файла: "), input("Введите название профессии: ")))
     report_data.generate_pdf("report.pdf")
+
+
+if __name__ == '__main__':
+    doctest.testmod()
+    create_pdf()

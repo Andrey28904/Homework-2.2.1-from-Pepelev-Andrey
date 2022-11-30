@@ -4,9 +4,6 @@ from prettytable import PrettyTable
 
 import doctest
 
-if __name__ == '__main__':
-    doctest.testmod()
-
 
 def do_exit(message):
     """Преднамеренное завершение программы с выводом сообщения в консоль.
@@ -370,3 +367,8 @@ class DataSet:
 def create_table():
     """Создать и напечатать таблицу PrettyTable."""
     DataSet()
+
+
+if __name__ == '__main__':
+    doctest.testmod()
+    create_table()
