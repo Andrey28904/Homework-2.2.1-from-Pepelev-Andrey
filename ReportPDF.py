@@ -1,5 +1,5 @@
 import csv, re, math
-import datetime
+import datetime, time
 
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
@@ -504,10 +504,16 @@ class Report:
 
 def create_pdf():
     """Функция создания pdf-файла-отчета."""
-    report_data = Report(DataSet(input("Введите название файла: "), input("Введите название профессии: ")))
+    file_name = input("Введите название файла: ")
+    prof = input("Введите название профессии: ")
+    start_time = time.time()
+    print("start!")
+    report_data = Report(DataSet(file_name, prof))
+    print("data done: " + str(time.time() - start_time))
     report_data.generate_pdf("report.pdf")
+    print("pdf done: " + str(time.time() - start_time))
 
 
 if __name__ == '__main__':
-    doctest.testmod()
+    #doctest.testmod()
     create_pdf()

@@ -1,4 +1,4 @@
-import csv, re, math, os
+import csv, os
 
 
 def do_exit(message):
@@ -16,7 +16,6 @@ class InputCorrect:
 
     Attributes:
         file (str): Название csv-файла с данными.
-        prof (str): Название профессии.
     """
     def __init__(self, file: str):
         """Инициализация объекта InputCorrect. Проверка на существование и заполненность файла.
@@ -35,7 +34,7 @@ class InputCorrect:
             if next(file_iter, "none") == "none": do_exit("Нет данных")
 
 
-class DataSet:
+class DataSet_Divider:
     """Считывание файла и формирование удобной структуры данных.
 
     Attributes:
@@ -88,11 +87,11 @@ class DataSet:
 
     def csv_divide(self):
         """Разделяет данные на csv-файлы по годам"""
-        current_year = DataSet.get_year_method_3(self.other_lines[0][self.year_index])
+        current_year = DataSet_Divider.get_year_method_3(self.other_lines[0][self.year_index])
         current_index = 0
         data_years = [[]]
         for line in self.other_lines:
-            line_year = DataSet.get_year_method_3(line[self.year_index])
+            line_year = DataSet_Divider.get_year_method_3(line[self.year_index])
             if line_year != current_year:
                 self.save_file(current_year, data_years[current_index])
                 current_year = line_year
@@ -108,10 +107,14 @@ def divide_csv_file(csv_dir: str):
         csv_dir (str): папка расположения всех csv-файлов.
     """
     input_data = InputCorrect(input("Введите название файла: "))
-    if not os.path.exists(csv_dir):
-        os.mkdir(csv_dir)
-    data_set = DataSet(input_data, csv_dir)
+    if os.path.exists(csv_dir):
+        import shutil
+        shutil.rmtree(csv_dir)
+    os.mkdir(csv_dir)
+    data_set = DataSet_Divider(input_data, csv_dir)
+    return data_set
 
 
 if __name__ == '__main__':
-   divide_csv_file("csv")
+    divide_csv_file("csv")
+
