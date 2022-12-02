@@ -443,8 +443,10 @@ class Report:
         html = open("html_template.html").read()
         template = Template(html)
         keys_to_values = {
-            "prof_name": self.data.prof,
-            "image_name": image_name,
+            "prof_name": "Аналитика по зарплатам и городам для профессии " + self.data.prof,
+            "image_name": "C:/Users/Shira/PycharmProjects/pythonProject_4/pythonProject_6_3/" + image_name,
+            "year_head": "Статистика по годам",
+            "city_head": "Статистика по городам",
             "years_headers": self.sheet_1_headers,
             "years_rows": self.sheet_1_rows,
             "cities_headers": self.sheet_2_headers,

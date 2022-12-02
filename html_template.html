@@ -38,9 +38,9 @@
     </style>
 </head>
 <body>
-    <h1>Аналитика по зарплатам и городам для профессии {{prof_name}}</h1>
-    <img src="file:///C:/Users/Shira/PycharmProjects/pythonProject_4/pythonProject_6_3/{{image_name}}" class="graph_img">
-    <h2>Статистика по годам</h2>
+    <h1>{{prof_name}}</h1>
+    <img src="file:///{{image_name}}" class="graph_img">
+    <h2>{{year_head}}</h2>
     <table class="table-years">
         <tr>
             {% for cell in years_headers %}
@@ -55,7 +55,7 @@
         </tr>
         {% endfor %}
     </table>
-    <h2>Статистика по городам</h2>
+    <h2>{{city_head}}</h2>
     <table class="table-cities">
         <tr>
             {% for cell in range(count_columns) %}
