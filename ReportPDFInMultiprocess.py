@@ -94,14 +94,16 @@ class DataSet:
 
     Attributes:
         csv_dir (str): папка расположения всех csv-файлов.
-        data_set (str): Данные в удобном формате.
+        prof (str): Название профессии.
+        file_name (str): Название большого файла с данными.
     """
     def __init__(self, csv_dir: str, prof: str, file_name: str):
         """Инициализация класса DataSet. Чтение. Фильтрация. Форматирование.
 
         Args:
             csv_dir (str): папка расположения всех csv-файлов.
-            data_set (str): Данные в удобном формате.
+            prof (str): Название профессии.
+            file_name (str): Название большого файла с данными.
         """
         self.csv_dir = csv_dir
         self.prof = prof
@@ -137,6 +139,8 @@ class DataSet:
         Args:
             current_year (str): Текущий год.
             lines (list): Список вакансий этого года.
+        Returns:
+            str: название нового csv-чанка.
         """
         file_name = f"file_{current_year}.csv"
         with open(f"{self.csv_dir}/{file_name}", "w", encoding='utf-8-sig', newline='') as csv_file:
@@ -190,7 +194,12 @@ class DataSet:
         print("stop: " + file_name)
 
     def csv_divide(self, file_name: str):
-        """Разделяет данные на csv-файлы по годам"""
+        """Разделяет данные на csv-файлы по годам
+        Args:
+            file_name (str): название большого файла с данными.
+        Returns:
+            (dict, dict): словарь город/вся зарплата, словарь город/кол-во вакансий.
+        """
         read_queue = mp.Queue()
         area_to_sum = {}
         area_to_count = {}
@@ -244,7 +253,7 @@ class DataSet:
     def sort_dict_for_keys(dic: dict) -> dict:
         """Вернуть отсортированный по ключам словарь.
         Args:
-            dic (dict): Неотсортироыанный словарь.
+            dic (dict): Неотсортированный словарь.
         Returns:
             dict: Отсортированный словарь.
         """
@@ -462,6 +471,10 @@ def create_pdf(csv_dir: str, file_name: str):
     file_csv_name = input("Введите название файла: ")
     prof = input("Введите название профессии: ")
     start_time = time.time()
+    if os.path.exists(csv_dir):
+        import shutil
+        shutil.rmtree(csv_dir)
+    os.mkdir(csv_dir)
     print("start!")
     data_set = DataSet(csv_dir, prof, file_csv_name)
     print("read_data: " + str(time.time() - start_time))
