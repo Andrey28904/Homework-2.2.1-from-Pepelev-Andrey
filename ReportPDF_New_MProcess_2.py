@@ -204,7 +204,8 @@ class Year_Proc_Read:
         """
         while not read_queue.empty():
             file_name = read_queue.get()
-            self.csv_start.input_values.timer.write_time("YEAR_PROCESS (" + mp.current_process().name + ")>>> Начало обработки файла \"" + file_name + "\"")
+            self.csv_start.input_values.timer\
+                .write_time("YEAR_PROCESS >>> [" + mp.current_process().name + "] Начало обработки файла \"" + file_name + "\"")
             with open(f"{self.csv_dir}/{file_name}", "r", encoding='utf-8-sig', newline='') as csv_file:
                 file = csv.reader(csv_file)
                 filtered_vacs = []
@@ -223,7 +224,8 @@ class Year_Proc_Read:
                 needed_sum = sum([vac.salary.salary_in_rur for vac in needed_vacs])
                 needed_middle = math.floor(needed_sum / needed_count)
             year_queue.put((year, all_count, all_middle, needed_count, needed_middle))
-            self.csv_start.input_values.timer.write_time("YEAR_PROCESS >>> Конец \"" + file_name + "\"")
+            self.csv_start.input_values.timer\
+                .write_time("YEAR_PROCESS >>> [" + mp.current_process().name + "] Конец \"" + file_name + "\"")
 
     def save_file(self, current_year: str, lines: list) -> str:
         """Сохраняет CSV-файл с конкретными годами
@@ -281,9 +283,10 @@ class Year_Proc_Read:
             self.csv_start.input_values.timer. \
                 write_time("YEAR >> Создан файл \"" + new_csv + "\"")
             read_queue.put(new_csv)
-            proc = mp.Process(target=self.read_one_csv_file, args=(year_queue, read_queue))
-            proc.start()
-            procs.append(proc)
+            if len(mp.active_children()) <= 0:
+                proc = mp.Process(target=self.read_one_csv_file, args=(year_queue, read_queue))
+                proc.start()
+                procs.append(proc)
         csv_file.close()
         self.csv_start.input_values.timer.write_time("YEAR >> Файл прочитан, ожидаем конца всех подпроцессов")
         for proc in procs:

@@ -585,3 +585,4 @@ if __name__ == '__main__':
     area_reader = Area_Proc_Read(csv_start)
     image_data = Image_Creator("graph_new_mp.png", year_reader, area_reader)
     report = Report_PDF_MP("report_new_multi.pdf", image_data)
+    timer.write_time("Конец чтения файла.")
