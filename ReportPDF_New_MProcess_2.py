@@ -196,32 +196,34 @@ class Year_Proc_Read:
         self.csv_dir = csv_dir
         self.year_process, self.year_queue = self.create_year_proc()
 
-    def read_one_csv_file(self, year_queue: mp.Queue, file_name: str) -> None:
+    def read_one_csv_file(self, year_queue: mp.Queue, read_queue: mp.Queue) -> None:
         """Читает один csv-файл и делает данные о нём.
         Args:
-            queue (Queue): очередь для добавления данных.
-            file_name (str): файл, из которого идет чтение.
+            queue (mp.Queue): очередь для добавления данных.
+            read_queue (mp.Queue): очередь из файлов для чтения.
         """
-        self.csv_start.input_values.timer.write_time("YEAR_PROCESS >>> Начало обработки файла \"" + file_name + "\"")
-        with open(f"{self.csv_dir}/{file_name}", "r", encoding='utf-8-sig', newline='') as csv_file:
-            file = csv.reader(csv_file)
-            filtered_vacs = []
-            year = int(file_name.replace("file_", "").replace(".csv", ""))
-            for line in file:
-                new_dict_line = dict(zip(self.csv_start.start_line, line))
-                new_dict_line["is_needed"] = (new_dict_line["name"]).find(self.csv_start.input_values.prof) > -1
-                vac = Vacancy(new_dict_line)
-                filtered_vacs.append(vac)
-            csv_file.close()
-            all_count = len(filtered_vacs)
-            all_sum = sum([vac.salary.salary_in_rur for vac in filtered_vacs])
-            all_middle = math.floor(all_sum / all_count)
-            needed_vacs = list(filter(lambda vacancy: vacancy.is_needed, filtered_vacs))
-            needed_count = len(needed_vacs)
-            needed_sum = sum([vac.salary.salary_in_rur for vac in needed_vacs])
-            needed_middle = math.floor(needed_sum / needed_count)
-        year_queue.put((year, all_count, all_middle, needed_count, needed_middle))
-        self.csv_start.input_values.timer.write_time("YEAR_PROCESS >>> Конец \"" + file_name + "\"")
+        while not read_queue.empty():
+            file_name = read_queue.get()
+            self.csv_start.input_values.timer.write_time("YEAR_PROCESS (" + mp.current_process().name + ")>>> Начало обработки файла \"" + file_name + "\"")
+            with open(f"{self.csv_dir}/{file_name}", "r", encoding='utf-8-sig', newline='') as csv_file:
+                file = csv.reader(csv_file)
+                filtered_vacs = []
+                year = int(file_name.replace("file_", "").replace(".csv", ""))
+                for line in file:
+                    new_dict_line = dict(zip(self.csv_start.start_line, line))
+                    new_dict_line["is_needed"] = (new_dict_line["name"]).find(self.csv_start.input_values.prof) > -1
+                    vac = Vacancy(new_dict_line)
+                    filtered_vacs.append(vac)
+                csv_file.close()
+                all_count = len(filtered_vacs)
+                all_sum = sum([vac.salary.salary_in_rur for vac in filtered_vacs])
+                all_middle = math.floor(all_sum / all_count)
+                needed_vacs = list(filter(lambda vacancy: vacancy.is_needed, filtered_vacs))
+                needed_count = len(needed_vacs)
+                needed_sum = sum([vac.salary.salary_in_rur for vac in needed_vacs])
+                needed_middle = math.floor(needed_sum / needed_count)
+            year_queue.put((year, all_count, all_middle, needed_count, needed_middle))
+            self.csv_start.input_values.timer.write_time("YEAR_PROCESS >>> Конец \"" + file_name + "\"")
 
     def save_file(self, current_year: str, lines: list) -> str:
         """Сохраняет CSV-файл с конкретными годами
@@ -254,6 +256,7 @@ class Year_Proc_Read:
         """
         start_line_len = len(self.csv_start.start_line)
         procs = []
+        read_queue = mp.Queue()
         with open(self.csv_start.input_values.file_name, "r", encoding='utf-8-sig') as csv_file:
             file = csv.reader(csv_file)
             next(file)
@@ -267,7 +270,8 @@ class Year_Proc_Read:
                         new_csv = self.save_file(current_year, data_years)
                         self.csv_start.input_values.timer. \
                             write_time("YEAR >> Создан файл \"" + new_csv + "\"")
-                        proc = mp.Process(target=self.read_one_csv_file, args=(year_queue, new_csv))
+                        read_queue.put(new_csv)
+                        proc = mp.Process(target=self.read_one_csv_file, args=(year_queue, read_queue))
                         proc.start()
                         procs.append(proc)
                         data_years = []
@@ -276,7 +280,8 @@ class Year_Proc_Read:
             new_csv = self.save_file(current_year, data_years)
             self.csv_start.input_values.timer. \
                 write_time("YEAR >> Создан файл \"" + new_csv + "\"")
-            proc = mp.Process(target=self.read_one_csv_file, args=(year_queue, new_csv))
+            read_queue.put(new_csv)
+            proc = mp.Process(target=self.read_one_csv_file, args=(year_queue, read_queue))
             proc.start()
             procs.append(proc)
         csv_file.close()
