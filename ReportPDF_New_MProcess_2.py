@@ -228,10 +228,11 @@ class CSV_Start:
             sal_norm = False
         return sal_norm
 
-    def is_valid_vac(self, line: list) -> bool:
+    def is_valid_vac(self, line: list, is_needed_salary: bool) -> bool:
         """Проверка списка на соответствие требованиям вакансии.
         Args:
             line (list): список значений для проверки.
+            is_needed_salary (bool): учитывать ли надобность зарплаты.
         Returns:
             bool: подходит ли список под вакансию или нет.
         """
@@ -240,12 +241,13 @@ class CSV_Start:
         is_valid_cur = self.all_currencies[line_cur] > 5000
         sal_from = self.is_numeric_value(line, "salary_from")
         sal_to = self.is_numeric_value(line, "salary_to")
-        year = line[self.index_of["published_at"]][:4]
-        month = str(int(line[self.index_of["published_at"]][5:7]))
-        try:
-            test = self.values_reader.currency_dict[year][month][line_cur]
-        except:
-            return False
+        if is_needed_salary:
+            year = line[self.index_of["published_at"]][:4]
+            month = str(int(line[self.index_of["published_at"]][5:7]))
+            try:
+                test = self.values_reader.currency_dict[year][month][line_cur]
+            except:
+                return False
         return is_normal_len and is_valid_cur and (sal_from or sal_to)
 
 
@@ -276,15 +278,19 @@ class Vacancy_Big:
     Attributes:
         dic (dict): Словарь информации о зарплате.
         values_reader (Currency_Values_Reader): Словарь информации по валютам.
+        is_count_salary (bool): Нужна ли зарплата.
     """
-    def __init__(self, dic: dict, values_reader: Currency_Values_Reader):
+    def __init__(self, dic: dict, values_reader: Currency_Values_Reader, is_count_salary: bool):
         """Инициализация объекта Vacancy_Big. Приведение к более удобному виду.
         Args:
             dic (dict): Словарь информации про зарплату.
             values_reader (Currency_Values_Reader): Словарь информации по валютам.
+            is_count_salary (bool): Нужна ли зарплата.
         """
         self.dic = dic
-        self.salary = self.get_salary(values_reader)
+        self.salary = 0
+        if is_count_salary:
+            self.salary = self.get_salary(values_reader)
         self.is_needed = dic["is_needed"]
 
     def get_salary(self, values_reader: Currency_Values_Reader) -> float:
@@ -403,7 +409,7 @@ class Year_Proc_Read:
         """
         new_dict = dict(zip(self.csv_start.start_line, line))
         new_dict["is_needed"] = None
-        new_vac = Vacancy_Big(new_dict, self.csv_start.values_reader)
+        new_vac = Vacancy_Big(new_dict, self.csv_start.values_reader, True)
         return new_vac.get_small().get_list()
 
     def year_proc(self, year_queue: mp.Queue) -> None:
@@ -420,10 +426,10 @@ class Year_Proc_Read:
             next_line = next(file)
             current_year = self.get_year(next_line)
             data_years = []
-            if self.csv_start.is_valid_vac(next_line):
+            if self.csv_start.is_valid_vac(next_line, True):
                 data_years.append(self.get_new_line(next_line))
             for line in file:
-                if self.csv_start.is_valid_vac(line):
+                if self.csv_start.is_valid_vac(line, True):
                     line_year = self.get_year(line)
                     if line_year != current_year:
                         new_csv = self.save_file(current_year, data_years)
@@ -555,10 +561,10 @@ class Area_Proc_Read:
             file = csv.reader(csv_file)
             next(file)
             for line in file:
-                if self.csv_start.is_valid_vac(line):
+                if self.csv_start.is_valid_vac(line, False):
                     new_dict_line = dict(zip(self.csv_start.start_line, line))
                     new_dict_line["is_needed"] = None
-                    vac = Vacancy_Big(new_dict_line, self.csv_start.values_reader)
+                    vac = Vacancy_Big(new_dict_line, self.csv_start.values_reader, False)
                     area_to_sum = Area_Proc_Read.try_to_add(area_to_sum, vac.dic["area_name"], vac.salary)
                     area_to_count = Area_Proc_Read.try_to_add(area_to_count, vac.dic["area_name"], 1)
         csv_file.close()
@@ -820,5 +826,5 @@ if __name__ == '__main__':
     image_data = Image_Creator("graph_new_mp_2.png", year_reader, area_reader)
     timer.write_time("MAIN > Данные готовы. Собираем PDF-отчет")
 
-    report = Report_PDF_MP("report_new_multi_api.pdf", image_data)
+    report = Report_PDF_MP("report_new_multi_api_2.pdf", image_data)
     timer.write_time("MAIN > Обработка завершена. Отчет готов")
