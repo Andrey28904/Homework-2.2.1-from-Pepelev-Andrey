@@ -103,7 +103,7 @@ class InputCorrect:
 
 
 class CSV_Start:
-    """Класс для формирования первичных данных файла.
+    """Класс для формирования первичных данных файла и валют.
     Attributes:
         input_values (InputCorrect): информация о файле и профессии.
     """
@@ -121,6 +121,12 @@ class CSV_Start:
             self.index_of = {}
             self.get_indexes()
             self.check_other_fields()
+            self.start_line_len = len(self.start_line)
+            self.all_currencies = {}
+            for line in file:
+                if len(line) == self.start_line_len:
+                    self.all_currencies = \
+                        CSV_Start.try_to_add(self.all_currencies, line[self.index_of["salary_currency"]], 1)
         csv_file.close()
 
     def get_indexes(self) -> None:
@@ -138,6 +144,51 @@ class CSV_Start:
             other_lines = [line for line in list(self.start_line) if line not in self.index_of.keys()]
             Error("ARGUMENT_WARNING", "There are additional fields in start_line: " + str(other_lines),
                   False, self.input_values.timer)
+
+    @staticmethod
+    def try_to_add(dic: dict, key, val) -> dict:
+        """Попытка добавить в словарь значение по ключу или создать новый ключ, если его не было.
+        Args:
+            dic (dict): Словарь, в который добавляется ключ или значение по ключу.
+            key: Ключ.
+            val: Значение.
+        Returns:
+            dict: Изменный словарь.
+        """
+        try:
+            dic[key] += val
+        except:
+            dic[key] = val
+        return dic
+
+    def is_numeric_value(self, line: list, index: str) -> bool:
+        """Проерка, можно ли кастовать значение по индексу index к типу float.
+        Args:
+            line (list): вакансия-строка.
+            index (str): значение позиции.
+        Returns:
+            bool: молжно ли кастовать к числу.
+        """
+        sal_norm = True
+        try:
+            float(line[self.index_of[index]])
+        except:
+            sal_norm = False
+        return sal_norm
+
+    def is_valid_vac(self, line: list) -> bool:
+        """Проверка списка на соответствие требованиям вакансии.
+        Args:
+            line (list): список значений для проверки.
+        Returns:
+            bool: подходит ли список под вакансию или нет.
+        """
+        is_normal_len = len(line) == self.start_line_len
+        line_cur = line[self.index_of["salary_currency"]]
+        is_valid_cur = self.all_currencies[line_cur] > 5000
+        sal_from = self.is_numeric_value(line, "salary_from")
+        sal_to = self.is_numeric_value(line, "salary_to")
+        return is_normal_len and is_valid_cur and (sal_from or sal_to)
 
 
 currency_to_rub = {
@@ -157,8 +208,14 @@ class Salary:
         Args:
             dic (dict): Словарь информации про зарплату.
         """
-        self.salary_from = math.floor(float(dic["salary_from"]))
-        self.salary_to = math.floor(float(dic["salary_to"]))
+        try:
+            self.salary_from = math.floor(float(dic["salary_from"]))
+        except:
+            self.salary_from = math.floor(float(dic["salary_to"]))
+        try:
+            self.salary_to = math.floor(float(dic["salary_to"]))
+        except:
+            self.salary_to = self.salary_from
         self.salary_currency = dic["salary_currency"]
         middle_salary = (self.salary_to + self.salary_from) / 2
         self.salary_in_rur = currency_to_rub[self.salary_currency] * middle_salary
@@ -179,7 +236,6 @@ class Vacancy:
         self.dic["year"] = int(dic["published_at"][:4])
         self.is_needed = dic["is_needed"]
 
-
 class Year_Proc_Read:
     """Класс для счета данных по годам.
     Attributes:
@@ -187,7 +243,8 @@ class Year_Proc_Read:
         csv_dir (str): расположение будущих мини-файлов-csv.
     """
     def __init__(self, csv_start: CSV_Start, csv_dir: str):
-        """Инициализация класса Area_Proc_Read. Формирование словарей город к сред. зарплате, город к доле вакансий в нем.
+        """Инициализация класса Area_Proc_Read. Формирование словарей город к сред. зарплате,
+        город к доле вакансий в нем.
         Args:
             csv_start (CSV_Start): Начальные данные (индексы и первая строка).
             csv_dir (str): расположение будущих мини-файлов-csv.
@@ -256,7 +313,6 @@ class Year_Proc_Read:
         Args:
             year_queue (mp.Queue): очередь, в которую будут складываться данные из файлов.
         """
-        start_line_len = len(self.csv_start.start_line)
         procs = []
         read_queue = mp.Queue()
         with open(self.csv_start.input_values.file_name, "r", encoding='utf-8-sig') as csv_file:
@@ -264,9 +320,11 @@ class Year_Proc_Read:
             next(file)
             next_line = next(file)
             current_year = self.get_year(next_line)
-            data_years = [next_line]
+            data_years = []
+            if self.csv_start.is_valid_vac(next_line):
+                data_years.append(next_line)
             for line in file:
-                if len(line) == start_line_len and "" not in line:
+                if self.csv_start.is_valid_vac(line):
                     line_year = self.get_year(line)
                     if line_year != current_year:
                         new_csv = self.save_file(current_year, data_years)
@@ -392,14 +450,14 @@ class Area_Proc_Read:
         Returns:
             (dict, dict): город к средней зарплате, город к доле вакансий в нем.
         """
-        start_line_len = len(self.csv_start.start_line)
         area_to_sum = {}
         area_to_count = {}
         with open(self.csv_start.input_values.file_name, "r", encoding='utf-8-sig') as csv_file:
             file = csv.reader(csv_file)
             next(file)
             for line in file:
-                if len(line) == start_line_len and "" not in line:
+                line_cur = line[self.csv_start.index_of["salary_currency"]]
+                if self.csv_start.is_valid_vac(line):
                     new_dict_line = dict(zip(self.csv_start.start_line, line))
                     new_dict_line["is_needed"] = None
                     vac = Vacancy(new_dict_line)
@@ -661,5 +719,5 @@ if __name__ == '__main__':
     image_data = Image_Creator("graph_new_mp_2.png", year_reader, area_reader)
     timer.write_time("MAIN > Данные готовы. Собираем PDF-отчет")
 
-    report = Report_PDF_MP("report_new_multi_2.pdf", image_data)
+    report = Report_PDF_MP("report_new_multi_api.pdf", image_data)
     timer.write_time("MAIN > Обработка завершена. Отчет готов")
