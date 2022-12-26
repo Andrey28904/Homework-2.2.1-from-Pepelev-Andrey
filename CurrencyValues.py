@@ -3,6 +3,7 @@ import pandas as pd
 import os, shutil
 import csv
 from ReportPDF_New_MProcess_2 import Error, Timer
+import multiprocessing as mp
 from datetime import datetime
 
 class Currency_Values_Creator:
@@ -24,7 +25,7 @@ class Currency_Values_Creator:
         self.temp_xml_name = "temp_xml.xml"
         self.temp_csv_name = "temp_csv.csv"
         self.start_year = 2003
-        self.start_month = 9
+        self.start_month = 1
         self.end_year = datetime.now().year
         self.end_month = datetime.now().month
         self.index_of = {}
@@ -127,35 +128,6 @@ class Currency_Values_Creator:
                 self.save_data_from_xml(cur_year, cur_month, csv_name)
 
 
-class Currency_Values_Reader:
-    start_basic_row = ["Year", "Month", "CharCode", "InRuR"]
-
-    def __init__(self, csv_dir: str, csv_name: str):
-        self.index_of = {}
-        self.currency_dict = self.get_currency_dict(csv_dir, csv_name)
-
-    def get_indexes(self, start_line: list) -> None:
-        """Получить индексы для нужных столбцов.
-        Args:
-            start_line (list): та строка, из которой получаем индексы.
-        """
-        for field in Currency_Values_Reader.start_basic_row:
-            try:
-                field_index = start_line.index(field)
-                self.index_of[field] = field_index
-            except:
-                Error("MISSING_INDEX", "Can't find index of \"" + field + "\"", True, Timer("", 0))
-
-    def get_currency_dict(self, csv_dir: str, csv_name: str) -> dict:
-        with open(file=csv_dir+"/"+csv_name, mode="r", encoding="utf-8-sig") as csv_file:
-            file = csv.reader(csv_file)
-            start_line = next(file)
-            self.get_indexes(start_line)
-            for line in file:
-                pass
-
-
 if __name__ == '__main__':
     values_creator = Currency_Values_Creator("api_data", "currency_csv.csv")
-    #values_reader = Currency_Values_Reader("api_data", "currency_csv.csv")
 

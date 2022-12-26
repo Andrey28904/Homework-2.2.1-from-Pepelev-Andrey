@@ -11,7 +11,6 @@ import concurrent.futures as pool
 from jinja2 import Template
 import pdfkit
 
-
 class Timer:
     """Класс для отслеживания скорости выполнения кода.
     Attributes:
@@ -102,19 +101,72 @@ class InputCorrect:
                 Error("ONLY_START_LINE", "Нет записей", True, self.timer)
 
 
+class Currency_Values_Reader:
+    """Класс для чтения csv-валют и формирования словря с валютами.
+    Attributes:
+        csv_dir (str): директория с csv-файлом.
+        csv_name (str): имя самого csv-файла.
+    """
+    start_basic_row = ["Year", "Month", "CharCode", "InRuR"]
+
+    def __init__(self, csv_dir: str, csv_name: str):
+        """Инициализация. создание нового параллельного процесса, который .
+        Args:
+            csv_dir (str): директория с csv-файлом.
+            csv_name (str): имя самого csv-файла.
+        """
+        self.currency_dict = self.count_currency_dict(csv_dir, csv_name)
+
+    def add_if_key_not_exist(self, cur_value_dict: dict, key: any) -> dict:
+        """Функция проверки наличия ключа в словаре, и если его нет, то добавить.
+        Args:
+            cur_value_dict (dict): словарь, в котором проверяем наличие ключа key.
+            key (any): сам ключ.
+        """
+        try:
+            test = cur_value_dict[key]
+        except:
+            cur_value_dict[key] = {}
+        return cur_value_dict
+
+    def count_currency_dict(self, csv_dir: str, csv_name: str) -> dict:
+        """Функция для обработки csv-файла с данными по валютам.
+        Args:
+            csv_queue (Queue): очередь, в которую будут положены данные.
+            full_csv_name (str): полный путь до файла.
+        Returns:
+            dict: словарь с нужными данными по валютам.
+        """
+        exit_cur_dict = {}
+        with open(file=csv_dir+"/"+csv_name, mode="r", encoding="utf-8-sig") as csv_file:
+            file = csv.reader(csv_file)
+            start_line = next(file)
+            for line in file:
+                line_dict = dict(zip(start_line, line))
+                exit_cur_dict = self.add_if_key_not_exist(exit_cur_dict, line_dict["Year"])
+                exit_cur_dict[line_dict["Year"]] = \
+                    self.add_if_key_not_exist(exit_cur_dict[line_dict["Year"]], line_dict["Month"])
+                exit_cur_dict[line_dict["Year"]][line_dict["Month"]] = \
+                    self.add_if_key_not_exist(exit_cur_dict[line_dict["Year"]][line_dict["Month"]], line_dict["CharCode"])
+                exit_cur_dict[line_dict["Year"]][line_dict["Month"]][line_dict["CharCode"]] = float(line_dict["InRuR"])
+        return exit_cur_dict
+
+
 class CSV_Start:
     """Класс для формирования первичных данных файла и валют.
     Attributes:
         input_values (InputCorrect): информация о файле и профессии.
     """
     needed_fields = ["name", "salary_from", "salary_to", "salary_currency", "area_name", "published_at"]
+    new_needed_fields = ["name", "salary", "area_name", "published_at"]
 
-    def __init__(self, input_values: InputCorrect):
+    def __init__(self, input_values: InputCorrect, values_reader: Currency_Values_Reader):
         """Инициализация класса CSV_Start. Вычисление индексов и стартовой строки.
         Args:
             input_values (InputCorrect): информация о файле и профессии.
         """
         self.input_values = input_values
+        self.values_reader = values_reader
         with open(self.input_values.file_name, "r", encoding='utf-8-sig') as csv_file:
             file = csv.reader(csv_file)
             self.start_line = next(file)
@@ -188,53 +240,88 @@ class CSV_Start:
         is_valid_cur = self.all_currencies[line_cur] > 5000
         sal_from = self.is_numeric_value(line, "salary_from")
         sal_to = self.is_numeric_value(line, "salary_to")
+        year = line[self.index_of["published_at"]][:4]
+        month = str(int(line[self.index_of["published_at"]][5:7]))
+        try:
+            test = self.values_reader.currency_dict[year][month][line_cur]
+        except:
+            return False
         return is_normal_len and is_valid_cur and (sal_from or sal_to)
 
 
-currency_to_rub = {
-    "AZN": 35.68, "BYR": 23.91, "EUR": 59.90, "GEL": 21.74,
-    "KGS": 0.76, "KZT": 0.13, "RUR": 1, "UAH": 1.64,
-    "USD": 60.66, "UZS": 0.0055,
-}
-
-
-class Salary:
-    """Информация о зарплате вакансии.
-    Attributes:
-        dic (dict): Словарь информации о зарплате.
-    """
-    def __init__(self, dic):
-        """Инициализация объекта Salary. Перевод зарплаты в рубли (для последущего сравнения).
-        Args:
-            dic (dict): Словарь информации про зарплату.
-        """
-        try:
-            self.salary_from = math.floor(float(dic["salary_from"]))
-        except:
-            self.salary_from = math.floor(float(dic["salary_to"]))
-        try:
-            self.salary_to = math.floor(float(dic["salary_to"]))
-        except:
-            self.salary_to = self.salary_from
-        self.salary_currency = dic["salary_currency"]
-        middle_salary = (self.salary_to + self.salary_from) / 2
-        self.salary_in_rur = currency_to_rub[self.salary_currency] * middle_salary
-
-
-class Vacancy:
-    """Информация о вакансии.
+class Vacancy_Small:
+    """Информация о мини-вакансии.
     Attributes:
         dic (dict): Словарь информации о зарплате.
     """
     def __init__(self, dic: dict):
-        """Инициализация объекта Vacancy. Приведение к более удобному виду.
+        """Инициализация объекта Vacancy_Small. Приведение к более удобному виду.
         Args:
             dic (dict): Словарь информации про зарплату.
         """
         self.dic = dic
-        self.salary = Salary(dic)
-        self.dic["year"] = int(dic["published_at"][:4])
+        self.salary = round(float(dic["salary"]), 1)
         self.is_needed = dic["is_needed"]
+
+    def get_list(self) -> list:
+        """Получить список значений вакансии для дальнейшего сохранения в csv
+        Returns:
+            list: вакансия в виде списка.
+        """
+        return [self.dic["name"], self.dic["salary"], self.dic["area_name"], self.dic["published_at"]]
+
+
+class Vacancy_Big:
+    """Информация о вакансии.
+    Attributes:
+        dic (dict): Словарь информации о зарплате.
+        values_reader (Currency_Values_Reader): Словарь информации по валютам.
+    """
+    def __init__(self, dic: dict, values_reader: Currency_Values_Reader):
+        """Инициализация объекта Vacancy_Big. Приведение к более удобному виду.
+        Args:
+            dic (dict): Словарь информации про зарплату.
+            values_reader (Currency_Values_Reader): Словарь информации по валютам.
+        """
+        self.dic = dic
+        self.salary = self.get_salary(values_reader)
+        self.is_needed = dic["is_needed"]
+
+    def get_salary(self, values_reader: Currency_Values_Reader) -> float:
+        """Получить зарплату по новой формуле (левый-правый край, зарплата того года)
+        Args:
+            values_reader (Currency_Values_Reader): словарь с валютами.
+        Returns:
+            float: зарплата в рублях по курсу того года.
+        """
+        try:
+            salary_from = math.floor(float(self.dic["salary_from"]))
+        except:
+            salary_from = math.floor(float(self.dic["salary_to"]))
+        try:
+            salary_to = math.floor(float(self.dic["salary_to"]))
+        except:
+            salary_to = salary_from
+        middle_salary = (salary_to + salary_from) / 2
+        year = self.dic["published_at"][:4]
+        month = str(int(self.dic["published_at"][5:7]))
+        char = self.dic["salary_currency"]
+        return values_reader.currency_dict[year][month][char] * middle_salary
+
+    def get_small(self) -> Vacancy_Small:
+        """Получить уменьшенную версию вакансии.
+        Returns:
+            Vacancy_Small: уменьшенная версия вакансии.
+        """
+        new_dict = {
+            "name": self.dic["name"],
+            "salary": self.salary,
+            "area_name": self.dic["area_name"],
+            "published_at": self.dic["published_at"],
+            "is_needed": self.is_needed
+        }
+        return Vacancy_Small(new_dict)
+
 
 class Year_Proc_Read:
     """Класс для счета данных по годам.
@@ -268,17 +355,17 @@ class Year_Proc_Read:
                 filtered_vacs = []
                 year = int(file_name.replace("file_", "").replace(".csv", ""))
                 for line in file:
-                    new_dict_line = dict(zip(self.csv_start.start_line, line))
+                    new_dict_line = dict(zip(CSV_Start.new_needed_fields, line))
                     new_dict_line["is_needed"] = (new_dict_line["name"]).find(self.csv_start.input_values.prof) > -1
-                    vac = Vacancy(new_dict_line)
+                    vac = Vacancy_Small(new_dict_line)
                     filtered_vacs.append(vac)
                 csv_file.close()
                 all_count = len(filtered_vacs)
-                all_sum = sum([vac.salary.salary_in_rur for vac in filtered_vacs])
+                all_sum = sum([vac.salary for vac in filtered_vacs])
                 all_middle = math.floor(all_sum / all_count)
                 needed_vacs = list(filter(lambda vacancy: vacancy.is_needed, filtered_vacs))
                 needed_count = len(needed_vacs)
-                needed_sum = sum([vac.salary.salary_in_rur for vac in needed_vacs])
+                needed_sum = sum([vac.salary for vac in needed_vacs])
                 needed_middle = math.floor(needed_sum / needed_count)
             year_queue.put((year, all_count, all_middle, needed_count, needed_middle))
             self.csv_start.input_values.timer\
@@ -307,6 +394,18 @@ class Year_Proc_Read:
         """
         return line[self.csv_start.index_of["published_at"]][:4]
 
+    def get_new_line(self, line: list) -> list:
+        """Получить новый список под новую, более простую вакансию.
+        Args:
+            line (list): стандартная строка:
+        Return:
+            list: укороченный лист.
+        """
+        new_dict = dict(zip(self.csv_start.start_line, line))
+        new_dict["is_needed"] = None
+        new_vac = Vacancy_Big(new_dict, self.csv_start.values_reader)
+        return new_vac.get_small().get_list()
+
     def year_proc(self, year_queue: mp.Queue) -> None:
         """Функция процесса, которая читает большой csv-файл и делит его на маленькие + создает процессы,
         которые читают эти маленькие файлы.
@@ -322,7 +421,7 @@ class Year_Proc_Read:
             current_year = self.get_year(next_line)
             data_years = []
             if self.csv_start.is_valid_vac(next_line):
-                data_years.append(next_line)
+                data_years.append(self.get_new_line(next_line))
             for line in file:
                 if self.csv_start.is_valid_vac(line):
                     line_year = self.get_year(line)
@@ -336,7 +435,7 @@ class Year_Proc_Read:
                         procs.append(proc)
                         data_years = []
                         current_year = line_year
-                    data_years.append(line)
+                    data_years.append(self.get_new_line(line))
             new_csv = self.save_file(current_year, data_years)
             self.csv_start.input_values.timer. \
                 write_time("YEAR >> Создан файл \"" + new_csv + "\"")
@@ -456,12 +555,11 @@ class Area_Proc_Read:
             file = csv.reader(csv_file)
             next(file)
             for line in file:
-                line_cur = line[self.csv_start.index_of["salary_currency"]]
                 if self.csv_start.is_valid_vac(line):
                     new_dict_line = dict(zip(self.csv_start.start_line, line))
                     new_dict_line["is_needed"] = None
-                    vac = Vacancy(new_dict_line)
-                    area_to_sum = Area_Proc_Read.try_to_add(area_to_sum, vac.dic["area_name"], vac.salary.salary_in_rur)
+                    vac = Vacancy_Big(new_dict_line, self.csv_start.values_reader)
+                    area_to_sum = Area_Proc_Read.try_to_add(area_to_sum, vac.dic["area_name"], vac.salary)
                     area_to_count = Area_Proc_Read.try_to_add(area_to_count, vac.dic["area_name"], 1)
         csv_file.close()
         area_to_middle_salary, area_to_piece = Area_Proc_Read.get_area_to_salary_and_piece(area_to_sum, area_to_count)
@@ -707,7 +805,10 @@ if __name__ == '__main__':
     timer.write_time("MAIN > Ввод окончен")
     timer.reload_start_time()
 
-    csv_start = CSV_Start(input_values)
+    values_reader = Currency_Values_Reader("api_data", "currency_csv.csv")
+    timer.write_time("MAIN > начало формирования словарей с данными валют")
+
+    csv_start = CSV_Start(input_values, values_reader)
     timer.write_time("MAIN > Первичная обработка завершена (первая строка + индексы)")
 
     year_reader = Year_Proc_Read(csv_start, "csv")
