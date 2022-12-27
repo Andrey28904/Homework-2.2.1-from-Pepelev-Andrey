@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 
 import multiprocessing as mp
-import concurrent.futures as pool
 
 from jinja2 import Template
 import pdfkit
