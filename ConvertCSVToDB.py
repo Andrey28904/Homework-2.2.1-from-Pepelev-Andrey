@@ -39,4 +39,4 @@ class DBConverter:
 
 
 if __name__ == '__main__':
-    converter = DBConverter("api_data/new_currencies.csv", "db", "currencies_db.db")
+    converter = DBConverter("api_data_new/new_currencies.csv", "db_currencies", "currencies_db.db")
