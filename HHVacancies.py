@@ -33,12 +33,25 @@ class HH_Vacancies:
         os.mkdir(dir)
 
     def get_salary_value(self, dic_vac: dict, param: str) -> str:
+        """Попытаться получить конкретное значение param зарплаты. Если нет, то вернуть пустую строку.
+        Args:
+            dic_vac(dict): словарь с данными.
+            param(str): параметр зарплаты.
+        Returns:
+            str: найденный параметр или пустая строка.
+        """
         value = dic_vac["salary"][param]
         if value == None:
             return ""
         return value
 
-    def try_to_get_salary(self, dic_vac: dict):
+    def try_to_get_salary(self, dic_vac: dict) -> list:
+        """Попытаться получить значения зарплаты. Если нет, то вернуть массив с пустыми данными.
+        Args:
+            dic_vac(dict): словарь с данными.
+        Returns:
+            list: список значений зарплаты.
+        """
         if dic_vac["salary"] == None:
             return ["", "", ""]
         return [self.get_salary_value(dic_vac, "from"),
@@ -46,6 +59,12 @@ class HH_Vacancies:
                 self.get_salary_value(dic_vac, "currency")]
 
     def process_json_data(self, vacs_json: pd.DataFrame) -> list:
+        """получить из json словарь и переработать его в список вакансий.
+        Args:
+            vacs_json (pd.DataFrame): json-дата с вакансиями.
+        Returns:
+            list: список вакансий.
+        """
         all_vacs_data = []
         for json_data in vacs_json.values:
             dic_vac = json_data[0]
@@ -56,6 +75,11 @@ class HH_Vacancies:
         return all_vacs_data
 
     def get_vacancies(self, j: int, file_path: str) -> None:
+        """Функция для одного процесса. делает запросы, созраняет результат в маленький файл с полным именем file_path
+        Args:
+            j (int): текущий период.
+            file_path (str): имя будущего csv-файла.
+        """
         page_from = 0
         page_to = 100
         all_vacs_data = []
@@ -78,6 +102,10 @@ class HH_Vacancies:
             csv_base.writerows(all_vacs_data)
 
     def create_processes(self) -> list:
+        """создание параллельной обработки периодов с помощью 30-ти процессов.
+        Returns:
+            list: список всех маленьких файлов, которые надо обработать.
+        """
         all_procs = []
         all_files = []
         temp_dir = self.data_dir+"/temp"
@@ -94,6 +122,7 @@ class HH_Vacancies:
         return all_files
 
     def save_vacs(self):
+        """Сохранение всех маленьких файлов в один большой."""
         all_vacs = []
         for file in self.all_files:
             with open(file=file, mode="r", encoding="utf-8-sig") as csv_file:
@@ -103,6 +132,7 @@ class HH_Vacancies:
             csv_base = csv.writer(csv_basic_file)
             csv_base.writerow(HH_Vacancies.headers)
             csv_base.writerows(all_vacs)
+
 
 if __name__ == '__main__':
     vacancies_data = HH_Vacancies("api_data/hh", "vacancies_from_hh.csv")
