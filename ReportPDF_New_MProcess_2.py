@@ -228,26 +228,24 @@ class CSV_Start:
             sal_norm = False
         return sal_norm
 
-    def is_valid_vac(self, line: list, is_needed_salary: bool) -> bool:
+    def is_valid_vac(self, line: list) -> bool:
         """Проверка списка на соответствие требованиям вакансии.
         Args:
             line (list): список значений для проверки.
-            is_needed_salary (bool): учитывать ли надобность зарплаты.
         Returns:
             bool: подходит ли список под вакансию или нет.
         """
         is_normal_len = len(line) == self.start_line_len
         line_cur = line[self.index_of["salary_currency"]]
-        is_valid_cur = self.all_currencies[line_cur] > 5000
+        is_valid_cur = self.all_currencies[line_cur] > 50
         sal_from = self.is_numeric_value(line, "salary_from")
         sal_to = self.is_numeric_value(line, "salary_to")
-        if is_needed_salary:
-            year = line[self.index_of["published_at"]][:4]
-            month = str(int(line[self.index_of["published_at"]][5:7]))
-            try:
-                test = self.values_reader.currency_dict[year][month][line_cur]
-            except:
-                return False
+        year = line[self.index_of["published_at"]][:4]
+        month = str(int(line[self.index_of["published_at"]][5:7]))
+        try:
+            test = self.values_reader.currency_dict[year][month][line_cur]
+        except:
+            return False
         return is_normal_len and is_valid_cur and (sal_from or sal_to)
 
 
@@ -278,19 +276,15 @@ class Vacancy_Big:
     Attributes:
         dic (dict): Словарь информации о зарплате.
         values_reader (Currency_Values_Reader): Словарь информации по валютам.
-        is_count_salary (bool): Нужна ли зарплата.
     """
-    def __init__(self, dic: dict, values_reader: Currency_Values_Reader, is_count_salary: bool):
+    def __init__(self, dic: dict, values_reader: Currency_Values_Reader):
         """Инициализация объекта Vacancy_Big. Приведение к более удобному виду.
         Args:
             dic (dict): Словарь информации про зарплату.
             values_reader (Currency_Values_Reader): Словарь информации по валютам.
-            is_count_salary (bool): Нужна ли зарплата.
         """
         self.dic = dic
-        self.salary = 0
-        if is_count_salary:
-            self.salary = self.get_salary(values_reader)
+        self.salary = self.get_salary(values_reader)
         self.is_needed = dic["is_needed"]
 
     def get_salary(self, values_reader: Currency_Values_Reader) -> float:
@@ -409,7 +403,7 @@ class Year_Proc_Read:
         """
         new_dict = dict(zip(self.csv_start.start_line, line))
         new_dict["is_needed"] = None
-        new_vac = Vacancy_Big(new_dict, self.csv_start.values_reader, True)
+        new_vac = Vacancy_Big(new_dict, self.csv_start.values_reader)
         return new_vac.get_small().get_list()
 
     def year_proc(self, year_queue: mp.Queue) -> None:
@@ -426,10 +420,10 @@ class Year_Proc_Read:
             next_line = next(file)
             current_year = self.get_year(next_line)
             data_years = []
-            if self.csv_start.is_valid_vac(next_line, True):
+            if self.csv_start.is_valid_vac(next_line):
                 data_years.append(self.get_new_line(next_line))
             for line in file:
-                if self.csv_start.is_valid_vac(line, True):
+                if self.csv_start.is_valid_vac(line):
                     line_year = self.get_year(line)
                     if line_year != current_year:
                         new_csv = self.save_file(current_year, data_years)
@@ -561,10 +555,10 @@ class Area_Proc_Read:
             file = csv.reader(csv_file)
             next(file)
             for line in file:
-                if self.csv_start.is_valid_vac(line, False):
+                if self.csv_start.is_valid_vac(line):
                     new_dict_line = dict(zip(self.csv_start.start_line, line))
                     new_dict_line["is_needed"] = None
-                    vac = Vacancy_Big(new_dict_line, self.csv_start.values_reader, False)
+                    vac = Vacancy_Big(new_dict_line, self.csv_start.values_reader)
                     area_to_sum = Area_Proc_Read.try_to_add(area_to_sum, vac.dic["area_name"], vac.salary)
                     area_to_count = Area_Proc_Read.try_to_add(area_to_count, vac.dic["area_name"], 1)
         csv_file.close()
@@ -699,10 +693,12 @@ class Image_Creator:
         self.sort_year_dicts()
         self.standart_bar(axis[0, 0], self.year_to_salary.keys(), self.year_to_salary_needed.keys(),
                           self.year_to_salary.values(), self.year_to_salary_needed.values(),
-                          "Средняя з/п", "з/п программист", "Уровень зарплат по годам")
+                          "Средняя з/п", "з/п "+self.year_reader.csv_start.input_values.prof,
+                          "Уровень зарплат по годам")
         self.standart_bar(axis[0, 1], self.year_to_count.keys(), self.year_to_count_needed.keys(),
                           self.year_to_count.values(), self.year_to_count_needed.values(),
-                          "Количество вакансий", "Количество вакансий программист", "Количество вакансий по годам")
+                          "Количество вакансий", "Количество вакансий "+self.year_reader.csv_start.input_values.prof,
+                          "Количество вакансий по годам")
 
     def generate_image(self) -> None:
         """Создать картинку в формате png для будущего pdf-отчета."""
@@ -763,8 +759,9 @@ class Report_PDF_MP:
             (list, list, list, list): Заголовки первой таблицы, остальные строки первой таблицы. Заголовки второй таблицы, отсальные строки второй таблицы.
         """
         image_data.area_reader.area_to_piece.pop("Другие")
-        sheet_1_headers = ["Год", "Средняя зарплата", "Средняя зарплата - Программист",
-                                "Количество вакансий", "Количество вакансий - Программист"]
+        sheet_1_headers = ["Год", "Средняя зарплата",
+                           "Средняя зарплата - " + image_data.year_reader.csv_start.input_values.prof, "Количество вакансий",
+                           "Количество вакансий - " + image_data.year_reader.csv_start.input_values.prof]
         sheet_1_columns = [list(image_data.year_to_salary.keys()), list(image_data.year_to_salary.values()),
                            list(image_data.year_to_salary_needed.values()), list(image_data.year_to_count.values()),
                            list(image_data.year_to_count_needed.values())]
