@@ -1,4 +1,5 @@
 import csv
+import os, shutil
 
 
 class RefactorAPICSV:
@@ -9,15 +10,24 @@ class RefactorAPICSV:
     """
     start_basic_row = {"Year" : 0, "Month": 1, "CharCode": 2, "InRuR": 3}
 
-    def __init__(self, full_path_to_csv: str, new_csv_path: str):
+    def __init__(self, full_path_to_csv: str, new_csv_path: str, new_csv_name: str):
         """Обработка старого файла и создание нового.
         Args:
             full_path_to_csv(str): старый файл.
-            new_csv_path(str): новый файл.
+            new_csv_path(str): новая директория.
+            new_csv_name(str): название нового файла.
         """
         self.full_path_to_csv = full_path_to_csv
         self.new_csv_path = new_csv_path
+        self.new_csv_name = new_csv_name
         self.get_new_csv()
+
+    @staticmethod
+    def make_dir_if_needed(dir: str) -> None:
+        """Создание нужной дериктории."""
+        if os.path.exists(dir):
+            shutil.rmtree(dir)
+        os.mkdir(dir)
 
     def get_all_currencies(self) -> list:
         """Получить список всех валют за все время.
@@ -52,13 +62,14 @@ class RefactorAPICSV:
         Args:
             all_lines(list): строки для сохренения.
         """
-        with open(file=self.new_csv_path, mode="w", encoding="utf-8-sig", newline='') as csv_basic_file:
+        RefactorAPICSV.make_dir_if_needed(self.new_csv_path)
+        with open(file=self.new_csv_path+"/"+self.new_csv_name,
+                  mode="w", encoding="utf-8-sig", newline='') as csv_basic_file:
             csv_base = csv.writer(csv_basic_file)
             csv_base.writerows(all_lines)
         csv_basic_file.close()
 
-
-    def get_new_csv(self) -> str:
+    def get_new_csv(self):
         """обработать старый файл и получить новые строки + сохранить их."""
         all_currencies = ["RUR"] + self.get_all_currencies()
         all_new_lines = []
@@ -81,8 +92,9 @@ class RefactorAPICSV:
                     current_cur_to_inrur["RUR"] = 1
                     current_year_month = year_month
                 current_cur_to_inrur[line[2]] = line[3]
+            all_new_lines.append([current_year_month] + list(current_cur_to_inrur.values()))
         self.save_data(all_new_lines)
 
 
 if __name__ == '__main__':
-    refactor = RefactorAPICSV("api_data/currency_csv.csv", "api_data/new_currencies.csv")
+    refactor = RefactorAPICSV("api_data/currency_csv.csv", "api_data_new", "new_currencies.csv")

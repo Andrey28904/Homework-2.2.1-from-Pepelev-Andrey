@@ -1,3 +1,4 @@
 *.csv
 .idea/
 *.xml
+vacancies_big.db

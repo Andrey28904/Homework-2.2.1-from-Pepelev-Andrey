@@ -135,4 +135,4 @@ class HH_Vacancies:
 
 
 if __name__ == '__main__':
-    vacancies_data = HH_Vacancies("api_data/hh", "vacancies_from_hh.csv")
+    vacancies_data = HH_Vacancies("api_hh", "vacancies_from_hh.csv")
