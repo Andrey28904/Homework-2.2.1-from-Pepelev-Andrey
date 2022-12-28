@@ -3,6 +3,7 @@ import pandas as pd
 import csv, math
 import shutil, os
 import sqlite3
+import datetime
 
 
 class Vacancy_Small:
@@ -68,7 +69,7 @@ class Vacancy_Big:
             "name": self.dic["name"],
             "salary": self.salary,
             "area_name": self.dic["area_name"],
-            "published_at": self.dic["published_at"],
+            "published_at": self.dic["published_at"][:10],
         }
         return Vacancy_Small(new_dict)
 
@@ -251,5 +252,5 @@ class DB_Preprocessing:
 
 
 if __name__ == '__main__':
-    preprocess = DB_Preprocessing("db_currencies/currencies_db.db", "api_hh/vacancies_from_hh.csv",
+    preprocess = DB_Preprocessing("db_currencies/currencies.db", "api_hh/vacancies_from_hh.csv",
                                   "vacancies_database", "vacancies.db")
